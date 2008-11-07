@@ -11,6 +11,12 @@
 # * Blob
 # * Structure
 
-module Ruckus;end
+module Ruckus
+end
 
-require File.dirname(__FILE__) + '/../extensions/extensions'
+require 'extensions/extensions'
+
+%w[ parsel number ip str choice null blob filter structure dictionary
+    mutator vector mac_addr enum time_t ].each do |f|
+    require 'ruckus/' + f
+end
