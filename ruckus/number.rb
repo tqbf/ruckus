@@ -261,4 +261,90 @@ module Ruckus
             s
         end
     end
+
+    Num = Number.clone
+    
+    ## ---------------------------------------------------------
+    ## XXX DRY, refactoring in process
+    ##
+    ## Moved this from classmethods to classes so we can encode
+    ## more into the type, useful for selectors
+
+    class Le16 < Number
+        def initialize(opts={}); super(opts.merge(:width => 16, :endian => :little))
+        end
+    end
+
+    # For no good reason, "halfwords" are little endian, but "shorts" are
+    # network byte order. You're welcome.
+
+    H16, Uint16le, Half, Halfword = [ Le16.clone, Le16.clone, Le16.clone, Le16.clone ]
+
+    class Le32 < Number
+        def initialize(opts={}); super(opts.merge(:width => 32, :endian => :little))
+        end
+    end
+
+    H32 = Le32.clone
+    Uint32le = Le32.clone
+
+    class Le64 < Number
+        def initialize(opts={}); super(opts.merge(:width => 64, :endian => :little))
+        end
+    end
+
+    H64 = Le64.clone
+    Uint64le = Le64.clone
+
+    class Be16 < Number
+        def initialize(opts={}); super(opts.merge(:width => 16, :endian => :big))
+        end
+    end
+
+    N16, Uint16be, Short = [Be16.clone, Be16.clone, Be16.clone]
+
+    class Be32 < Number
+        def initialize(opts={}); super(opts.merge(:width => 32, :endian => :big))
+        end
+    end
+
+    N32 = Be32.clone
+    Uint32be = Be32.clone
+
+    class Be64 < Number
+        def initialize(opts={}); super(opts.merge(:width => 64, :endian => :big))
+        end
+    end
+
+    N64 = Be64.clone
+    Uint64be = Be64.clone
+
+    class Byte < Number
+        def initialize(opts={}); super(opts.merge(:width => 8))
+        end
+    end
+
+    Le8, Be8, N8, H8 = [Byte.clone, Byte.clone, Byte.clone, Byte.clone]
+
+    class Bit < Number
+        def initialize(opts={}); super(opts.merge(:width => 1))
+        end
+    end
+
+    class Nibble < Number
+        def initialize(opts={}); super(opts.merge(:width => 4))
+        end
+    end
+    Nybble = Nibble.clone
+
+    # A length field (specify the width, if it's not 32 bits
+    # little-endian) --- its value will be :size of the following
+    # field (or provide :offset)
+
+    class Len < Number
+        def initialize(opts={})
+            super(opts.merge(:width => 32, :value => :size))
+        end
+    end
+
 end

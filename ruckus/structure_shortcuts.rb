@@ -9,62 +9,12 @@ module Ruckus
             add(Number, opts.merge(:name => name))
         end
 
-        # little-endian 16 bits (a.k.a. <tt>h16</tt>, h=host)
-        def self.le16(*args); with_args(*args) {|name, opts| num name, opts.merge(:width => 16, :endian => :little )}; end
-        alias_cmethod :h16, :le16
-        alias_cmethod :uint16le, :le16
-
-        # big-endian 16 bits (a.k.a. <tt>n16</tt>, n=network)
-        def self.be16(*args); with_args(*args) {|name, opts| num name, opts.merge(:width => 16, :endian => :big )}; end
-        alias_cmethod :n16, :be16
-        alias_cmethod :uint16be, :be16
-
-        # little 32
-        def self.le32(*args); with_args(*args) {|name, opts| num name, opts.merge(:width => 32, :endian => :little )}; end
-        alias_cmethod :h32, :le32
-        alias_cmethod :uint32le, :le32
-
-        # big 32
-        def self.be32(*args); with_args(*args) {|name, opts| num name, opts.merge(:width => 32, :endian => :big )}; end
-        alias_cmethod :n32, :be32
-        alias_cmethod :uint32be, :be32
-
-        # little 64
-        def self.le64(*args); with_args(*args) {|name, opts| num name, opts.merge(:width => 64, :endian => :little )}; end
-        alias_cmethod :h64, :le64
-        alias_cmethod :uint64le, :le64
-
-        # big 64
-        def self.be64(*args); with_args(*args) {|name, opts| num name, opts.merge(:width => 64, :endian => :big )}; end
-        alias_cmethod :n64, :be64
-        alias_cmethod :uint64be, :be64
-
-        # a single byte, a.k.a. le8, be8, n8, h8
-        def self.byte(*args); with_args(*args) {|name, opts| num name, opts.merge(:width => 8)}; end
-        alias_cmethod :le8, :byte
-        alias_cmethod :be8, :byte
-        alias_cmethod :n8,  :byte
-        alias_cmethod :h8,  :byte
-
         def self.char(*args); with_args(*args) {|name, opts| str opts.merge(:name => name, :size => 1)}; end
-
-        # For no good reason, "halfwords" are little endian, but "shorts" are
-        # network byte order. You're welcome.
-        alias_cmethod :half, :h16
-        alias_cmethod :halfword, :h16
-        alias_cmethod :short, :n16
 
         def self.decimal(*args); with_args(*args) {|name, opts| num name, opts.merge(:ascii => true, :radix => 10)}; end
         def self.hex_number(*args); with_args(*args) {|name, opts| num name, opts.merge(:ascii => true, :radix => 16)}; end
 
-        # Yep, you can declare single bits
-        def self.bit(*args); with_args(*args) {|name, opts| num name, opts.merge(:width => 1)}; end
-
         def self.tag_bit(*args); with_args(*args) {|name, opts| num name, opts.merge(:width => 1, :tag => name)}; end
-
-        # Yep, you can have nibble fields
-        def self.nibble(*args); with_args(*args) {|name, opts| num name, opts.merge(:width => 4)}; end
-        alias_cmethod :nybble, :nibble
 
         # A string (ie, multiple of 8 bits wide) containing all zeroes.
         # You could also just use
@@ -73,16 +23,6 @@ module Ruckus
         def self.zero_pad(*args)
             with_args(*args) do |name, opts|
                 str opts.merge(:name => name, :padding => "\x00")
-            end
-        end
-
-        # A length field (specify the width, if it's not 32 bits
-        # little-endian) --- its value will be :size of the following
-        # field (or provide :offset)
-        #
-        def self.len(*args); with_args(*args) do |name, opts|
-                opts[:width] ||= 32
-                num name, opts.merge(:value => :size)
             end
         end
 
