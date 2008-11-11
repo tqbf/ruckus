@@ -49,14 +49,31 @@ module Ruckus
             pool = (pool & cpool) if cpool
             pool = (pool & kpool) if kpool
                 
-            sels.each do |s|
-                pool.each do |victim|
-                    found = false
-                    victim.root {|n| found = true if n.matches_selector? s}
-                    pool.delete(victim) if not found
-                end
-            end
+            # XXX this loop is fucked:
+            # outer loop needs to be pool
+            # will capture parent nodes in arbitrary order
+#             sels.each do |s|
+#                 pool.each do |victim|
+#                     found = false
+#                     victim.root {|n| found = true if n.matches_selector? s}
+#                     pool.delete(victim) if not found
+#                 end
+#             end
 
+            pool.each do |victim|
+                tmpsels = sels.clone
+                cur = sels.shift
+
+                victim.root do |parent|
+                    break if not cur
+                    if parent.matches_selector? cur
+                        cur = sels.shift
+                    end
+                end
+                
+                pool.delete(victim) if cur
+            end
+            
             pool.each do |n|
                 yield n
             end
