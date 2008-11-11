@@ -226,9 +226,11 @@ module Ruckus
 
         # Traverse all the way to the root of the tree
         #
-        def root(p = self)
+        def root(p = self, &block)
+            yield p if block_given?
             while p.parent
                 p = p.parent
+                yield p if block_given?
             end
             return p
         end
