@@ -37,8 +37,11 @@ module Ruckus
 
         (class << self;self;end).class_eval {
             include StructureRelateDeclaration
+            include StructureValidateField
+            include StructureFixupFieldNames
 
             def class_method_missing_hook(meth, *args); super; end
+            def structure_field_def_hook(*args); super; end
 
             # Rules for converting classmethod calls to types:
             # 1.   Convert to uppercase
@@ -54,14 +57,8 @@ module Ruckus
                     mod = Ruckus
                 end
 
-                if args[0] and args[0].kind_of? Symbol
-                    if args[1]
-                        args[1][:name] = args[0]
-                    else
-                        args[1] = { :name => args[0] }
-                    end
-                    args.shift
-                end
+                structure_field_def_hook args
+
 
                 if [ "value", "name", "size" ].include?(nm = args[0][:name] && args[0][:name].to_s) or (nm and nm.starts_with? "relate_")
                     raise "can't have fields named #{ nm }, because we suck; rename the field"
@@ -70,8 +67,7 @@ module Ruckus
                 begin
                     klass = mod.const_get(meth.to_s.class_name)
                 rescue
-                    pp "bad #{ meth }"
-                    raise
+                    raise "can't find \"#{ meth.to_s.class_name }\" in the default module"
                 end
 
                 add(klass, *args)
@@ -113,7 +109,7 @@ module Ruckus
         public
         # No special options yet. A structure is just a parsel; pass
         # options through to the parent class.
-        #
+        #f
         def initialize(opts={})
 
             # A Structure is really just a Blob with extra goop
