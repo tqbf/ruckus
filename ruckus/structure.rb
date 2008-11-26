@@ -36,13 +36,25 @@ module Ruckus
             # 5.   Call #new on it (when the object is instantiated)
             #
             def method_missing(meth, *args)
+                if meth.to_s =~ /^relate_(.*)/
+                    return relate($1.intern, *args)
+                end
+
                 if not args[-1].kind_of? Hash or not (mod = args[-1][:from])
                     mod = Ruckus
                 end
 
-                if args[0] and args[1] and args[0].kind_of? Symbol
-                    args[1][:name] = args[0]
+                if args[0] and args[0].kind_of? Symbol
+                    if args[1]
+                        args[1][:name] = args[0]
+                    else
+                        args[1] = { :name => args[0] }
+                    end
                     args.shift
+                end
+
+                if [ "value", "name", "size" ].include?(nm = args[0][:name] && args[0][:name].to_s) or (nm and nm.starts_with? "relate_")
+                    raise "can't have fields named #{ nm }, because we suck; rename the field"
                 end
 
                 begin
@@ -53,6 +65,29 @@ module Ruckus
                 end
 
                 add(klass, *args)
+            end
+
+            def relate(attr, field, opts={})
+                opts[:through] ||= :value
+                raise "need a valid field to relate" if not field
+                raise "need :to argument" if not opts[:to]
+
+                @@initializers[self] << lambda do
+                    f = send(field)
+
+                    case attr
+                    when :value
+                        f.value = opts[:through]
+                        f.instance_eval { @from_field = opts[:to] }
+                    when :size
+                        f.instance_eval {
+                            @in_size = {
+                                :meth => opts[:through],
+                                :from_field => opts[:to]
+                            }
+                        }
+                    end
+                end
             end
         }
 
@@ -229,6 +264,8 @@ module Ruckus
 
             setter = (m[-1].chr == "=") ? true : false
             m = m[0..-2] if setter
+
+            puts "WARNING: assignment to @value as struct field" if setter and m == "value"
 
             if (i = d[m.intern])
                 if setter

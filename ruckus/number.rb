@@ -347,4 +347,8 @@ module Ruckus
         end
     end
 
+    class Decimal < Ruckus::Number
+        OPTIONS = { :ascii => true, :radix => 10 }
+    end
+
 end

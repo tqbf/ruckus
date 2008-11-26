@@ -1,5 +1,11 @@
 # === Pretty much anything that isn't a Number is a Str
 
+# class Symbol
+#     def clone
+#         self # fuck you ruby, what the fuck is wrong with you
+#     end
+# end
+
 module Ruckus
     # A Ruckus::Str is a bag of bytes, wrapping a Ruby string
     class Str < Parsel
