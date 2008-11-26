@@ -1,5 +1,10 @@
 # === Structures are blobs with symbol tables.
 #
+
+Dir[File.expand_path("#{File.dirname(__FILE__)}/structure/*.rb")].each do |file|
+    require file
+end
+
 module Ruckus
     # A Ruckus::Structure wraps a Ruckus::Blob, giving each of the fields
     # a name. Additionally, Structure has classmethod shorthand for DSL-style
@@ -21,12 +26,19 @@ module Ruckus
     # parsels.
     #
     class Structure < Parsel
-        @@templates ||= {}
-        @@names ||= {}
-        @@callbacks ||= Hash.new {|h, k| h[k] = []}
-        @@initializers ||= Hash.new {|h, k| h[k] = []}
+        include StructureAllowFieldReplacement
+        include StructureInitializers
+        include StructureAtCreate
+        include StructureBeforeCallbacks
+        include StructureProxies
+
+        class_inheritable_array :templates
+        class_inheritable_hash  :structure_field_names
 
         (class << self;self;end).class_eval {
+            include StructureRelateDeclaration
+
+            def class_method_missing_hook(meth, *args); super; end
 
             # Rules for converting classmethod calls to types:
             # 1.   Convert to uppercase
@@ -36,9 +48,7 @@ module Ruckus
             # 5.   Call #new on it (when the object is instantiated)
             #
             def method_missing(meth, *args)
-                if meth.to_s =~ /^relate_(.*)/
-                    return relate($1.intern, *args)
-                end
+                return if not class_method_missing_hook(meth, *args)
 
                 if not args[-1].kind_of? Hash or not (mod = args[-1][:from])
                     mod = Ruckus
@@ -66,55 +76,7 @@ module Ruckus
 
                 add(klass, *args)
             end
-
-            def relate(attr, field, opts={})
-                opts[:through] ||= :value
-                raise "need a valid field to relate" if not field
-                raise "need :to argument" if not opts[:to]
-
-                @@initializers[self] << lambda do
-                    f = send(field)
-
-                    case attr
-                    when :value
-                        f.value = opts[:through]
-                        f.instance_eval { @from_field = opts[:to] }
-                    when :size
-                        f.instance_eval {
-                            @in_size = {
-                                :meth => opts[:through],
-                                :from_field => opts[:to]
-                            }
-                        }
-                    end
-                end
-            end
         }
-
-        # holy crap I need to figure this metaclass stuff out
-        def self.at_create(arg=nil, &block)
-            if not block_given?
-                raise "need a callback function" if not arg
-                arg = arg.intern if not arg.kind_of? Symbol
-                block = lambda { send(arg) }
-            end
-
-            @@initializers[self] << block
-        end
-
-        def self.override(field, val)
-            at_create { self[field] = val }
-        end
-
-        def self.before_render(arg=nil, &block)
-            if not block_given?
-                raise "need a callback function" if not arg
-                arg = arg.intern if not arg.kind_of? Symbol
-                block = lambda { send(arg) }
-            end
-
-            @@callbacks[self] << block
-        end
 
         # If you have an actual class reference, you can just pass
         # it to <tt>add</tt>, as in:
@@ -123,10 +85,32 @@ module Ruckus
         #
         def self.add(*args)
             raise "no class" if not args[0]
-            @@templates[self] ||= []
-            @@templates[self] << [args[0], args[1..-1]]
+
+            write_inheritable_array :templates, [[args[0], args[1..-1]]]
         end
 
+        private
+        def template_decoder_ring(t)
+            # Gross. Fields normally take a first argument, a symbol,
+            # specifying the name, and then an opts hash. They can
+            # also just take an options hash, in which case we expect
+            # the name to be in the hash as :name. Extra fun: you
+            # don't have to name every field, and things will still work.
+            #
+            if t[1][0].kind_of? Symbol and (not t[1][1] || t[1][1].kind_of?(Hash))
+                t[1][1] ||= {}
+                t[1][1][:name] = (name = t[1][0])
+                t[1] = [t[1][1]]
+            elsif t[1][0].kind_of? Hash
+                name = t[1][0][:name]
+            end
+            return name
+        end
+
+        def template_entry_added_hook(*args); super *args; end
+        def final_initialization_hook(*args); super *args; end
+
+        public
         # No special options yet. A structure is just a parsel; pass
         # options through to the parent class.
         #
@@ -140,68 +124,33 @@ module Ruckus
             # add, with what arguments, given where we are in the
             # inheritance hierarchy.
 
-            @before_callbacks = []
-            @initializers = []
-            template = []
-            rec = lambda do |x|
-                # Walk up until we find Structure, which should
-                # never have fields, collecting field definitions
-
-                if x.superclass.inherits_from? Structure
-                    rec.call(x.superclass)
-                end
-
-                @before_callbacks.concat((@@callbacks[x]||[]))
-                @initializers.concat((@@initializers[x]||[]))
-                template.concat @@templates[x] if @@templates[x]
-            end
-            rec.call self.class
+            template = self.class.templates
 
             # If this is the first time we're seeing this definition,
             # we also need to convert field names into blob offsets.
-            #
-            if not @@names[self.class]
-                @@names[self.class] = Hash.new
+            pop = false
+            if not self.class.structure_field_names
+                self.class.write_inheritable_hash :structure_field_names, {}
                 pop = true
-            else
-                pop = false
             end
 
             template.each do |t|
-                # Gross. Fields normally take a first argument, a symbol,
-                # specifying the name, and then an opts hash. They can
-                # also just take an options hash, in which case we expect
-                # the name to be in the hash as :name. Extra fun: you
-                # don't have to name every field, and things will still work.
-                #
-                if t[1][0].kind_of? Symbol and (not t[1][1] || t[1][1].kind_of?(Hash))
-                    t[1][1] ||= {}
-                    t[1][1][:name] = (name = t[1][0])
-                    t[1] = [t[1][1]]
-                elsif t[1][0].kind_of? Hash
-                    name = t[1][0][:name]
-                end
+                # do some rewriting to support an old style of declaring
+                # fields that we supported like 6 months ago.
+                name = template_decoder_ring(t)
 
-                @@names[self.class][name] = @value.count if (name and pop)
+                # index the field name if this is the first time we've
+                # ever instantiated this kind of structure, and the field
+                # is valid
+                self.class.structure_field_names[name] = @value.count if (name and pop)
+
                 begin
-                    klass = t[0]
-                    args = t[1]
+                    # create the structure field object, parent it
+                    klass, args = [t[0], t[1]]
                     obj = klass.new(*args)
                     obj.parent = @value
-                    found = false
 
-                    @value.each_with_index do |x,i|
-                        if x.try(:name) == obj.try(:name)
-                            found = i
-                            break
-                        end
-                    end
-                    @value << obj if not found
-
-                    if found
-                        @@names[self.class][name] = found
-                        @value[found] = obj
-                    end
+                    template_entry_added_hook(obj) || @value << obj
                 rescue
                     pp t
                     raise
@@ -210,11 +159,7 @@ module Ruckus
 
             super(opts)
 
-            @initializers.each {|cb| self.instance_eval(&cb)}
-        end
-
-        def before_render
-            @before_callbacks.each {|cb| self.instance_eval(&cb)}
+            final_initialization_hook
         end
 
         # Return a field (the Parsel object) by offset into the
@@ -223,7 +168,7 @@ module Ruckus
         def [](k)
             k = k.intern if k.kind_of? String
             if k.kind_of? Symbol
-                @value[@@names[self.class][k]]
+                @value[self.class.structure_field_names[k]]
             else
                 @value[k]
             end
@@ -235,7 +180,7 @@ module Ruckus
         def []=(k, v)
             k = k.intern if k.kind_of? String
             if k.kind_of? Symbol
-                @value[@@names[self.class][k]] = v
+                @value[self.class.structure_field_names[k]] = v
             else
                 @value[k] = v
             end
@@ -247,10 +192,12 @@ module Ruckus
             @value.capture(str)
         end
 
+        def before_render_hook(*args); super(*args); end
+
         # Easy --- delegate to blob
         #
         def to_s(off=nil)
-            before_render
+            before_render_hook
             @rendered_offset = off || 0
             @value.to_s(off)
         end
@@ -259,7 +206,7 @@ module Ruckus
         # to field names.
         #
         def method_missing(meth, *args)
-            d = @@names[self.class]
+            d = self.class.structure_field_names
             m = meth.to_s
 
             setter = (m[-1].chr == "=") ? true : false
@@ -277,31 +224,6 @@ module Ruckus
                 super(meth, *args)
             end
         end
-
-        class ValueProxy
-            def initialize(target); @t = target; end
-            def method_missing(meth, *args)
-                if meth.to_s.ends_with? "="
-                    @t.send(meth, *args)
-                else
-                    @t.send(meth).send(:value)
-                end
-            end
-        end
-
-        class NodeProxy
-            def initialize(target); @t = target; end
-            def method_missing(meth, *args)
-                if meth.to_s.ends_with? "="
-                    @t.send(meth, *args)
-                else
-                    @t[meth]
-                end
-            end
-        end
-
-        def v; ValueProxy.new(self); end
-        def n; NodeProxy.new(self); end
 
         def self.with_args(*args, &block)
             if args[0].kind_of? Hash
