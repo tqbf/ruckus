@@ -1,3 +1,6 @@
+*Under construction: we're in the process of extracting this from our toolshed
+repository; please pardon the flaws.*
+
 # Ruckus: A DOM-Inspired Ruby Smart Fuzzer
 
 Ruckus is a:
