@@ -4,14 +4,24 @@ module Ruckus
             klass.extend(ClassMethods)
         end
 
-        def template_entry_added_hook(obj)
-            obj.instance_variables.grep(/^@with_.*/).each do |v|
+        def final_initialization_hook
+            instance_variables.grep(/^@with_.*/).each do |v|
                 v =~ /@with_(.*)/
                 var = $1
-                obj.send((var + "=").intern, obj.instance_variable_get(v.intern))
+                send((var + "=").intern, instance_variable_get(v.intern))
             end
             super
         end
+
+        # XXX probably not needed
+#         def template_entry_added_hook(obj)
+#             obj.instance_variables.grep(/^@with_.*/).each do |v|
+#                 v =~ /@with_(.*)/
+#                 var = $1
+#                 obj.send((var + "=").intern, obj.instance_variable_get(v.intern))
+#             end
+#             super
+#         end
 
         def method_missing_hook(meth, args)
             m = meth.to_s

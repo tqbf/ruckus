@@ -26,12 +26,13 @@ module Ruckus
     # parsels.
     #
     class Structure < Parsel
+        include StructureInitializers
         include StructureAllowFieldReplacement
         include StructureDefaultValues
-        include StructureInitializers
         include StructureAtCreate
         include StructureBeforeCallbacks
         include StructureProxies
+        include StructureSearchModules
 
         class_inheritable_array :templates
         class_inheritable_hash  :structure_field_names
@@ -54,11 +55,13 @@ module Ruckus
             def method_missing(meth, *args)
                 return if not class_method_missing_hook(meth, *args)
 
-                if not args[-1].kind_of? Hash or not (mod = args[-1][:from])
-                    mod = Ruckus
+                if args[-1].kind_of? Hash
+                    mod = args[-1][:from]
                 end
 
                 structure_field_def_hook args
+                # XXX no good hook for this
+                mod ||= derive_search_module
 
                 begin
                     klass = mod.const_get(meth.to_s.class_name)
@@ -149,6 +152,12 @@ module Ruckus
                 end
             end
 
+            opts.each do |k, v|
+                if self.class.structure_field_names.has_key? k
+                    raise "attempting to assign field name as option; use with_{field_name} instead"
+                end
+            end
+
             super(opts)
 
             final_initialization_hook
@@ -194,10 +203,14 @@ module Ruckus
             @value.to_s(off)
         end
 
+        def method_missing_hook(meth, *args); super; end
+
         # A la openstruct/struct --- method calls can be references
         # to field names.
         #
         def method_missing(meth, *args)
+            return if not method_missing_hook(meth, args)
+
             d = self.class.structure_field_names
             m = meth.to_s
 
