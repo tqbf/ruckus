@@ -353,5 +353,7 @@ module Ruckus
         # phase in the new names
         def out(*args); to_s(*args); end
         def in(*args); capture(*args); end
+
+        def factory?; false; end
     end
 end
