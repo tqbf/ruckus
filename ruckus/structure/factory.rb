@@ -1,11 +1,15 @@
 module Ruckus
     module StructureDetectFactory
+        def factory?
+            self.respond_to? :factory
+        end
+
         def structure_field_def_hook(*a)
             args = a[0]
             opts = args[0].respond_to?(:has_key?) ? args[0] : args[1]
             include StructureFactory if opts.try(:has_key?, :decides)
             super
-        end
+        end        
     end
     
     module StructureFactory

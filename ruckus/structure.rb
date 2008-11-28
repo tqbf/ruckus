@@ -74,6 +74,8 @@ module Ruckus
                     end
 
                     add(klass, *args)
+                rescue => e
+                    raise "you called \"#{ meth.to_s }\" on a #{ self.to_s }, and we don't know how to handle that"
                 ensure
                     @mm_locked = false
                 end

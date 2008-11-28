@@ -58,7 +58,20 @@ module Ruckus
             @value.each_with_index do |it, i|
                 [str]
                 raise IncompleteCapture if str.empty?
-                if it.class.respond_to? :factory
+
+                # you don't always know the type of object
+                # you want to instantiate at compile time;
+                # it can depend on the contents of a packet.
+                # when it does, there's a flag set that enables
+                # a "factory" method which does the parse.
+                #
+                # the downside of this is once a blob has
+                # been parsed with a factory, its definition
+                # changes; that same blob can't be reused
+                # to parse another packet. So, just don't
+                # do that.
+
+                if it.class.factory?
                     @value[i], str = it.class.factory(str)
                 else
                     str = it.capture(str)
