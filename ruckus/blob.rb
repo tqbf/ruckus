@@ -1,5 +1,7 @@
 # === Blobs are collections of Parsels.
 
+class IncompleteCapture < RuntimeError; end
+
 module Ruckus
     # A Blob wraps an array. Everything within the array is rendered
     # sequentially, returning a single string. Blob rendering is effectively
@@ -54,7 +56,13 @@ module Ruckus
         #
         def capture(str)
             @value.each_with_index do |it, i|
-                str = it.capture(str)
+                [str]
+                raise IncompleteCapture if str.empty?
+                if it.class.respond_to? :factory
+                    @value[i], str = it.class.factory(str)
+                else
+                    str = it.capture(str)
+                end
             end
             str
         end

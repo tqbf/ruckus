@@ -40,6 +40,7 @@ module Ruckus
         (class << self;self;end).class_eval {
             include StructureRelateDeclaration
             include StructureValidateField
+            include StructureDetectFactory
             include StructureFixupFieldNames
 
             def class_method_missing_hook(meth, *args); super; end
@@ -53,23 +54,29 @@ module Ruckus
             # 5.   Call #new on it (when the object is instantiated)
             #
             def method_missing(meth, *args)
-                return if not class_method_missing_hook(meth, *args)
-
-                if args[-1].kind_of? Hash
-                    mod = args[-1][:from]
-                end
-
-                structure_field_def_hook args
-                # XXX no good hook for this
-                mod ||= derive_search_module
-
                 begin
-                    klass = mod.const_get(meth.to_s.class_name)
-                rescue
-                    raise "can't find \"#{ meth.to_s.class_name }\" in the default module"
-                end
+                    raise "method_missing is recursing" if @mm_locked
+                    @mm_locked = true
+                    return if not class_method_missing_hook(meth, *args)
 
-                add(klass, *args)
+                    if args[-1].kind_of? Hash
+                        mod = args[-1][:from]
+                    end
+
+                    structure_field_def_hook args
+                    # XXX no good hook for this
+                    mod ||= derive_search_module
+
+                    begin
+                        klass = mod.const_get(meth.to_s.class_name)
+                    rescue
+                        raise "can't find \"#{ meth.to_s.class_name }\" in the default module"
+                    end
+
+                    add(klass, *args)
+                ensure
+                    @mm_locked = false
+                end
             end
         }
 
@@ -241,6 +248,10 @@ module Ruckus
 
             opts ||= {}
             block.call(name, opts)
+        end
+
+        def each_field
+            @value.each {|f| yield f.name, f}
         end
     end
 end
