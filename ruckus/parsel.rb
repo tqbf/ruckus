@@ -354,6 +354,6 @@ module Ruckus
         def out(*args); to_s(*args); end
         def in(*args); capture(*args); end
 
-        def factory?; false; end
+        def self.factory?; false; end
     end
 end
