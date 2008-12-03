@@ -56,8 +56,7 @@ module Ruckus
         #
         def capture(str)
             @value.each_with_index do |it, i|
-                [str]
-                raise IncompleteCapture if str.empty?
+                raise IncompleteCapture if not str or str.empty?
 
                 # you don't always know the type of object
                 # you want to instantiate at compile time;
