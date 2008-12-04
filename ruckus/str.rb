@@ -56,7 +56,10 @@ module Ruckus
 
             @value = nil
 
+            incomplete! if not str
+
             if (s = size)
+                incomplete! if str.size < s
                 cap = str[0...s]
             elsif nul
                 nterm = str.index(uni ? "\000\000" : "\000")

@@ -56,28 +56,32 @@ module Ruckus
         #
         def capture(str)
             @value.each_with_index do |it, i|
-                err = "at item #{ i }"
-                err << " named \"#{ it.name }\"" if it.name
-                err << " in struct \"#{ it.parent_struct.name }\"" if it.parent_struct
+                begin
+                    str ||= "" # XXX bug
 
-                raise IncompleteCapture.new(err) if not str or str.empty?
+                    # you don't always know the type of object
+                    # you want to instantiate at compile time;
+                    # it can depend on the contents of a packet.
+                    # when it does, there's a flag set that enables
+                    # a "factory" method which does the parse.
+                    #
+                    # the downside of this is once a blob has
+                    # been parsed with a factory, its definition
+                    # changes; that same blob can't be reused
+                    # to parse another packet. So, just don't
+                    # do that.
 
-                # you don't always know the type of object
-                # you want to instantiate at compile time;
-                # it can depend on the contents of a packet.
-                # when it does, there's a flag set that enables
-                # a "factory" method which does the parse.
-                #
-                # the downside of this is once a blob has
-                # been parsed with a factory, its definition
-                # changes; that same blob can't be reused
-                # to parse another packet. So, just don't
-                # do that.
+                    if it.class.factory?
+                        @value[i], str = it.class.factory(str)
+                    else
+                        str = it.capture(str)
+                    end
+                rescue IncompleteCapture
+                    err = "at item #{ i }"
+                    err << " named \"#{ it.name }\"" if it.name
+                    err << " in struct \"#{ it.parent_struct.name }\"" if it.parent_struct
 
-                if it.class.factory?
-                    @value[i], str = it.class.factory(str)
-                else
-                    str = it.capture(str)
+                    raise IncompleteCapture.new(err) if not str or str.empty?
                 end
             end
             str

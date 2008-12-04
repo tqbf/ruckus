@@ -1,6 +1,8 @@
 # === Parsels are tree nodes
 
 module Ruckus
+    class IncompleteCapture < RuntimeError; end
+
     # A parsel is an object that supports the following three methods:
     # * An <tt>initialize</tt> that accepts and passes through an opts hash
     # * A <tt>to_s<tt> that renders binary, and takes an optional "offset" arg
@@ -355,5 +357,7 @@ module Ruckus
         def in(*args); capture(*args); end
 
         def self.factory?; false; end
+
+        def incomplete!; raise IncompleteCapture; end
     end
 end

@@ -99,6 +99,8 @@ module Ruckus
         def capture(str)
             return ascii_capture(str) if @ascii
             return odd_width_capture(str) if not (code = widthcode)
+
+            incomplete! if str.size < size
             cap = str.shift(size)
             cap = cap.reverse if not Parsel.native?(@endian)
             @value = cap.unpack(code).first
@@ -113,6 +115,8 @@ module Ruckus
         }
 
         def ascii_capture(str)
+            incomplete! if str.empty?
+
             # weak
             if (rad = resolve(@radix)) == 0
                 if str.starts_with? "0x"
@@ -229,7 +233,9 @@ module Ruckus
         def odd_width_capture(str)
             return str if not odd_width_first?
 
-            cap = str.shift(Parsel.bytes_for_bits(span_bits))
+            incomplete! if str.size < (bytes_for_bits = Parsel.bytes_for_bits(span_bits))
+
+            cap = str.shift(bytes_for_bits)
 
             acc = 0
             cap.each_byte do |b|
@@ -263,7 +269,7 @@ module Ruckus
     end
 
     Num = Number.clone
-    
+
     ## ---------------------------------------------------------
     ## XXX DRY, refactoring in process
     ##
