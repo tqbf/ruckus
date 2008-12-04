@@ -88,9 +88,8 @@ module Ruckus
             fin = -1
             mod = nul ? 1 : 0
 
-            ret = str[(cap.size+mod)..fin]
-#            ret = ret.to_ascii if uni
-            return ret
+            str.slice! 0, (cap.size + mod)
+            return str
         end
 
         # As per Parsel, write the string
