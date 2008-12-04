@@ -22,6 +22,8 @@ module Ruckus
         def capture(str)
             # debugger
             count = resolve(@count)
+            raise "You need to provide a :count value to parse a vector; did you give it ':size' by mistake?" if not count
+
             count.downto(1) do |i|
                 break if not str or str.empty?
                 o = @class.new(@e_opts.merge(:parent => self))
