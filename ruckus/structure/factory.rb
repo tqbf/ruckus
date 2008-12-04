@@ -9,9 +9,9 @@ module Ruckus
             opts = args[0].respond_to?(:has_key?) ? args[0] : args[1]
             include StructureFactory if opts.try(:has_key?, :decides)
             super
-        end        
+        end
     end
-    
+
     module StructureFactory
         def self.included(klass)
             klass.extend(ClassMethods)
@@ -26,7 +26,11 @@ module Ruckus
                         klass = m[f.value]
                         if klass
                             o = derive_search_module.const_get(klass.to_s.class_name).new
-                            orig = o.capture(orig)
+                            if o.class.factory?
+                                o, orig = o.class.factory(orig)
+                            else
+                                orig = o.capture(orig)
+                            end
                             return o, orig
                         end
                     end

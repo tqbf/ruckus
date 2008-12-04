@@ -1,7 +1,5 @@
 # === Blobs are collections of Parsels.
 
-class IncompleteCapture < RuntimeError; end
-
 module Ruckus
     # A Blob wraps an array. Everything within the array is rendered
     # sequentially, returning a single string. Blob rendering is effectively
