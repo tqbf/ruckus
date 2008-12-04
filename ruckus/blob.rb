@@ -56,7 +56,11 @@ module Ruckus
         #
         def capture(str)
             @value.each_with_index do |it, i|
-                raise IncompleteCapture if not str or str.empty?
+                err = "at item #{ i }"
+                err << " named \"#{ it.name }\"" if it.name
+                err << " in struct \"#{ it.parent_struct.name }\"" if it.parent_struct
+
+                raise IncompleteCapture.new(err) if not str or str.empty?
 
                 # you don't always know the type of object
                 # you want to instantiate at compile time;
