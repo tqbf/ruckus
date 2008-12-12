@@ -29,11 +29,17 @@ module Ruckus
             m = m[0..-2] if setter
             if setter and (field = self[m.intern])
                 if(field.kind_of? Structure)
-                    if((deft = field.instance_variable_get :@default_field))
-                        field.send(deft.to_s + "=", args[0])
-                        return false
+                    if args[0].kind_of? field.class
+                        args[0].each_field do |name, f|
+                            field.value = f.value
+                        end
                     else
-                        puts "WARNING: attempt to set structure field with no default_field declared"
+                        if((deft = field.instance_variable_get :@default_field))
+                            field.send(deft.to_s + "=", args[0])
+                            return false
+                        else
+                            puts "WARNING: attempt to set structure field with no default_field declared"
+                        end
                     end
                 end
             end
