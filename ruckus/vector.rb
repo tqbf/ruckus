@@ -74,13 +74,6 @@ module Ruckus
                         key = @key_finder.call(str)
                     end
 
-                    pp [1, key]
-                    pp [2, @keys[key]]
-                    pp [3, @classes[@keys[key]],]
-                    pp [4, @keys]
-                    pp [5, @classes]
-
-
                     begin
                         o = @classes[@keys[key]].new(@e_opts.merge(:parent => self))
                         str = o.capture(str)
